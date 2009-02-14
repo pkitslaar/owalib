@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2009 Pieter Kitslaar
 # All rights reserved.
