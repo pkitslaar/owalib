@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2009 Pieter Kitslaar
 # All rights reserved.
@@ -27,7 +28,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 
-#! /usr/bin/env python
 """
 Classes and methods to access a MS Exchange server through WebDAV with Outlook Web Access (OWA)
 
@@ -140,12 +140,19 @@ def fixFileName(_fileName):
     return result 
 
 
-class OWAConnection(httplib.HTTPSConnection):
+class OWAConnectionPlugin(object):
     """
-    Class to connect to a Outlook Web Access page using WebDAV.
+    Plugin class to connect to a Outlook Web Access page using WebDAV.
+    Don't use this class directly, but use the specialized classes:
+        - PlainOWAConnection
+        - SecureOWAConnection
+    Or use the OWAConnectionClass factory method.
     """
     def __init__(self, *args, **kw):
-        apply(httplib.HTTPSConnection.__init__, (self,) + args, kw)
+        # using super for mixin multiple inheritance
+        # as discussed at: http://stackoverflow.com/questions/1282368/
+        s  = super(OWAConnectionPlugin, self) 
+        s.__init__(*args, **kw)
         
         self.authentication_header = None
 
@@ -314,3 +321,23 @@ class OWAConnection(httplib.HTTPSConnection):
         resp= self.do_request('BDELETE', _inboxPath + '/', getDeleteMsg(_messagePath), hdr)
         resp.read()
         return resp.status == 207
+
+
+class PlainOWAConnection(OWAConnectionPlugin, httplib.HTTPConnection, object):
+    """ OWAConnection class for non-SSL (http://) connections """
+    pass
+    
+
+
+class SecureOWAConnection(OWAConnectionPlugin, httplib.HTTPSConnection, object):
+    """ OWAConnection class for secure SSL (https://) connections """
+    pass
+
+def OWAConnectionClass(_secure):
+    """ Factory method to return the correc connection class based on the _secure argument. """
+    if _secure:
+        return SecureOWAConnection
+    else:
+        return PlainOWAConnection
+
+    

@@ -28,7 +28,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 
-#! /usr/bin/env python
 """
 Command line utility to fetch mail from a MS Exchange server using WebDAV with Outlook Web Access (OWA) enabled.
 Based on the java fetchExc utility (http://www.saunalahti.fi/juhrauti/index.html).
@@ -44,25 +43,65 @@ import logging
 import owalib
 import smtplib
 
-def sendMail(_server, _dstAddress, _fromAddress, _message, _user = None, _password = None):
+def sendMail(_fromAddress, _message, _prop_dict):
     """
     Sends an email using SMTP.
     """
-    s = smtplib.SMTP(_server)
-    s.starttls()
-    if _user and _password:
-        s.login(_user, _password)
-    s.sendmail(_fromAddress, _dstAddress, _message)
+    # Get server and port info
+    server = _prop_dict.get('MailServer','localhost')
+    port = eval(_prop_dict.get('MailServerPort', '25'))
+    s = smtplib.SMTP(server, port)
+
+    # should we use TTLS
+    if _prop_dict.get('MailServerUseTTLS', 'false').lower() == 'true':
+        s.starttls()
+    
+    # check if we need to login
+    user = _prop_dict.get('MailServerUser', None)
+    password = _prop_dict.get('MailServerPassword', None)
+    if user and password:
+        s.login(user, password)
+
+    # get the destination address
+    dstAddress = _prop_dict['DestinationAddress'] 
+    
+    # send the mail
+    s.sendmail(_fromAddress, dstAddress, _message)
+
+    # close the session
     s.quit()
 
 # List of required properties 
-REQUIRED_PROPERTIES = [
-    'ExchangeServer', 
-    'Username',
-    'Password',
-    'Domain',
-    'ExchangePath'
+PROPERTIES = [
+    ('ExchangeServer', 'REQUIRED'),
+    ('ExchangePath', 'REQUIRED'),
+    ('FBApath', 'OPTIONAL'),
+    ('ExchangeUser', 'UNSUPPORTED'),
+    ('Username', 'REQUIRED'),
+    ('Password', 'REQUIRED'),
+    ('Domain', 'REQUIRED'),
+    ('Secure', 'OPTIONAL'),
+    ('Destination', 'UNSUPPORTED'),
+    ('ProxyHost', 'UNSUPPORTED'),
+    ('ProxyPort', 'UNSUPPORTED'),
+    ('Delete', 'OPTIONAl'),
+    ('All', 'OPTIONAl'),
+    ('DestinationAddress', 'OPTIONAL'),
+    ('ForceFrom', 'UNSUPPORTED'),
+    ('ForceFromAddr', 'UNSUPPORTED'),
+    ('MboxFile', 'UNSUPPORTED'),
+    ('ProcMail', 'UNSUPPORTED'),
+    ('MailServer', 'OPTIONAL'),
+    ('MailServerPort', 'OPTIONAL'),
+    ('MailServerUseTTLS', 'OPTIONAL'),
+    ('MailServerUser', 'OPTIONAL'),
+    ('MailServerPassword', 'OPTIONAL'),
+    ('NoEightBitMime', 'UNSUPPORTED'),
     ]
+
+ALL_PROPERTIES = [p[0] for p in PROPERTIES]
+REQUIRED_PROPERTIES = [p[0] for p in PROPERTIES if p[1] == 'REQUIRED']
+UNSUPPORTED_PROPERTIES = [p[0] for p in PROPERTIES if p[1] == 'UNSUPPORTED']
 
 def ParseProperties(_file):
     """
@@ -76,6 +115,10 @@ def ParseProperties(_file):
 
     # loop over the file
     for line in f:
+        # skip comments
+        if line.startswith('#'):
+            continue
+
         # split at the '=' character
         key_value = line.split('=')
 
@@ -89,12 +132,32 @@ def ParseProperties(_file):
         # add the key value pair 
         prop_dict[key] = value
 
+    # find missing props
     missing_props = [p for p in REQUIRED_PROPERTIES if p not in prop_dict.keys()]
     if len(missing_props) > 0:
         print "Missing following required properties: "
         for p in missing_props:
             print p
         sys.exit(1)
+    #    
+    unsupported_props = [p for p in UNSUPPORTED_PROPERTIES if p in prop_dict.keys()]
+    if len(unsupported_props) > 0:
+        print "*** Found unsupported properties (these will be ignored): "
+        for p in unsupported_props:
+            print "**** %s: %s" % (p, prop_dict[p])
+            del prop_dict[p]
+        print    
+
+    # unknown properties
+    unknown_props = [p for p in prop_dict.keys() if p not in ALL_PROPERTIES]
+    if len(unknown_props) > 0:
+        print "*** Found unknown properties (these will be inored): "
+        for p in unknown_props:
+            print "*** %s: %s" % (p, prop_dict[p])
+            del prop_dict[p]
+        print    
+
+
 
     return prop_dict
         
@@ -124,7 +187,8 @@ if __name__ == "__main__":
     # define the options parser options
     usage = "usage: %prog [options] <properties-file>\n"
     parser = OptionParser(usage)
-    parser.add_option("-s", "--silent", action="store_true", dest="Silent", help="Silent outpu. Only outputs error messaghes.")
+    parser.add_option("-p", "--print", action="store_true", dest="Print", help="Print properties. Print the properties found in the properties file.")
+    parser.add_option("-s", "--silent", action="store_true", dest="Silent", help="Silent output. Only outputs error messages.")
     parser.add_option("-l", "--list", action="store_true", dest="ListOnly", help="Only list the messages.")
     parser.add_option("-a", "--all", action="store_true", dest="AllMessages", help="Fetch all messages (default: only unread messages)")
     parser.add_option("-v", "--verbose", action="store_true", dest="Verbose", help="Produce verbose output")
@@ -140,6 +204,13 @@ if __name__ == "__main__":
     # get the properties file and parse it
     properties_file = args[0]
     prop_dict = ParseProperties(properties_file)
+
+    # check if we should just print the properties
+    if options.Print:
+      for key, value in prop_dict.iteritems():
+        print "%s: %s" % (key, value)
+      sys.exit(0)
+
 
     # Setup console output for the logging module
     console = logging.StreamHandler()
@@ -159,10 +230,14 @@ if __name__ == "__main__":
     fullUserName = "%s\\%s" % (prop_dict["Domain"], prop_dict["Username"])
 
     # Create the OWA session
-    owa  = owalib.OWAConnection(prop_dict["ExchangeServer"])
+    secure = prop_dict.get('Secure', 'false').lower() == 'true'
+    owa  = owalib.OWAConnectionClass(secure)(prop_dict["ExchangeServer"])
 
     # Use Form Based Authentication (FBA)
-    owa.doFBA( fullUserName, prop_dict["Password"], prop_dict["ExchangePath"], prop_dict["FBApath"] )
+    password = prop_dict['Password'] 
+    exchangepath = prop_dict['ExchangePath'] 
+    fbapath = prop_dict.get('FBAPath', '/exchweb/bin/auth/owaauth.dll')
+    owa.doFBA( fullUserName, password, exchangepath, fbapath)
 
     # get the users root path on the server
     rootpath = owa.getRootPath(prop_dict["ExchangePath"])
@@ -194,7 +269,7 @@ if __name__ == "__main__":
             log.info('Sending mail %i: (%s)%s' % (i, m["fromemail"], m["subject"]))
             message = owa.getMessage(m["href"])
 
-            sendMail(prop_dict["MailServer"], prop_dict["DestinationAddress"], m["fromemail"],message)
+            sendMail(m["fromemail"],message, prop_dict)
             
             if prop_dict.get('Delete','false').lower() == 'true':
                 if(owa.deleteMessage(inboxPath, m["href"])):
