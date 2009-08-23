@@ -139,7 +139,6 @@ def fixFileName(_fileName):
         result = result.replace(repl[0], repl[1])
     return result 
 
-
 class OWAConnectionPlugin(object):
     """
     Plugin class to connect to a Outlook Web Access page using WebDAV.
@@ -164,15 +163,18 @@ class OWAConnectionPlugin(object):
         This is based on (copied from) the example found in Phil Andrews blog:
         http://pxa-be.blogspot.com/2008/07/exchange-form-based-authentication-and.html
         """
+
+        handlerType = (urllib2.HTTPHandler, urllib2.HTTPSHandler)[self.secure]
+        protocol = ('http://', 'https://')[self.secure]
         
         # init the CookieJar and register it with the url openner
         cj = cookielib.CookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPSHandler(),urllib2.HTTPCookieProcessor(cj))
+        opener = urllib2.build_opener(handlerType(),urllib2.HTTPCookieProcessor(cj))
         urllib2.install_opener(opener)
 
         # define the body of the request setting the username and password
         owabody = ''
-        owabody += 'destination=https://' + self.host + '/' + _exchangePath + '/'
+        owabody += 'destination=' + protocol + self.host + '/' + _exchangePath + '/'
         owabody += '&username=' + _username
         owabody += '&password=' + _password
 
@@ -184,7 +186,7 @@ class OWAConnectionPlugin(object):
         'Host': self.host}
 
         # define the url and make the request
-        owaurl = 'https://'+self.host+_fbaPath
+        owaurl = protocol+self.host+_fbaPath
         owareq = urllib2.Request(owaurl,owabody,owaheaders)
         owa = urllib2.urlopen(owareq)
 
@@ -325,16 +327,14 @@ class OWAConnectionPlugin(object):
 
 class PlainOWAConnection(OWAConnectionPlugin, httplib.HTTPConnection, object):
     """ OWAConnection class for non-SSL (http://) connections """
-    pass
+    secure = False
     
-
-
 class SecureOWAConnection(OWAConnectionPlugin, httplib.HTTPSConnection, object):
     """ OWAConnection class for secure SSL (https://) connections """
-    pass
+    secure = True
 
 def OWAConnectionClass(_secure):
-    """ Factory method to return the correc connection class based on the _secure argument. """
+    """ Factory method to return the correct connection class based on the _secure argument. """
     if _secure:
         return SecureOWAConnection
     else:
