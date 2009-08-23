@@ -106,6 +106,7 @@ UNSUPPORTED_PROPERTIES = [p[0] for p in PROPERTIES if p[1] == 'UNSUPPORTED']
 def ParseProperties(_file):
     """
     Parse a fetchExc style properties file.
+    See example.properties for more documentation on the availale options.
     """
     # open the file
     f = open(_file)
@@ -139,7 +140,8 @@ def ParseProperties(_file):
         for p in missing_props:
             print p
         sys.exit(1)
-    #    
+
+    # find unsupported props   
     unsupported_props = [p for p in UNSUPPORTED_PROPERTIES if p in prop_dict.keys()]
     if len(unsupported_props) > 0:
         print "*** Found unsupported properties (these will be ignored): "
@@ -156,8 +158,6 @@ def ParseProperties(_file):
             print "*** %s: %s" % (p, prop_dict[p])
             del prop_dict[p]
         print    
-
-
 
     return prop_dict
         
