@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2009 Pieter Kitslaar
 # All rights reserved.
@@ -28,6 +27,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 
+#! /usr/bin/env python
 """
 Classes and methods to access a MS Exchange server through WebDAV with Outlook Web Access (OWA)
 
@@ -139,19 +139,13 @@ def fixFileName(_fileName):
         result = result.replace(repl[0], repl[1])
     return result 
 
-class OWAConnectionPlugin(object):
+
+class OWAConnection(httplib.HTTPSConnection):
     """
-    Plugin class to connect to a Outlook Web Access page using WebDAV.
-    Don't use this class directly, but use the specialized classes:
-        - PlainOWAConnection
-        - SecureOWAConnection
-    Or use the OWAConnectionClass factory method.
+    Class to connect to a Outlook Web Access page using WebDAV.
     """
     def __init__(self, *args, **kw):
-        # using super for mixin multiple inheritance
-        # as discussed at: http://stackoverflow.com/questions/1282368/
-        s  = super(OWAConnectionPlugin, self) 
-        s.__init__(*args, **kw)
+        apply(httplib.HTTPSConnection.__init__, (self,) + args, kw)
         
         self.authentication_header = None
 
@@ -163,18 +157,15 @@ class OWAConnectionPlugin(object):
         This is based on (copied from) the example found in Phil Andrews blog:
         http://pxa-be.blogspot.com/2008/07/exchange-form-based-authentication-and.html
         """
-
-        handlerType = (urllib2.HTTPHandler, urllib2.HTTPSHandler)[self.secure]
-        protocol = ('http://', 'https://')[self.secure]
         
         # init the CookieJar and register it with the url openner
         cj = cookielib.CookieJar()
-        opener = urllib2.build_opener(handlerType(),urllib2.HTTPCookieProcessor(cj))
+        opener = urllib2.build_opener(urllib2.HTTPSHandler(),urllib2.HTTPCookieProcessor(cj))
         urllib2.install_opener(opener)
 
         # define the body of the request setting the username and password
         owabody = ''
-        owabody += 'destination=' + protocol + self.host + '/' + _exchangePath + '/'
+        owabody += 'destination=https://' + self.host + '/' + _exchangePath + '/'
         owabody += '&username=' + _username
         owabody += '&password=' + _password
 
@@ -186,7 +177,7 @@ class OWAConnectionPlugin(object):
         'Host': self.host}
 
         # define the url and make the request
-        owaurl = protocol+self.host+_fbaPath
+        owaurl = 'https://'+self.host+_fbaPath
         owareq = urllib2.Request(owaurl,owabody,owaheaders)
         owa = urllib2.urlopen(owareq)
 
@@ -323,21 +314,3 @@ class OWAConnectionPlugin(object):
         resp= self.do_request('BDELETE', _inboxPath + '/', getDeleteMsg(_messagePath), hdr)
         resp.read()
         return resp.status == 207
-
-
-class PlainOWAConnection(OWAConnectionPlugin, httplib.HTTPConnection, object):
-    """ OWAConnection class for non-SSL (http://) connections """
-    secure = False
-    
-class SecureOWAConnection(OWAConnectionPlugin, httplib.HTTPSConnection, object):
-    """ OWAConnection class for secure SSL (https://) connections """
-    secure = True
-
-def OWAConnectionClass(_secure):
-    """ Factory method to return the correct connection class based on the _secure argument. """
-    if _secure:
-        return SecureOWAConnection
-    else:
-        return PlainOWAConnection
-
-    
