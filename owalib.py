@@ -279,7 +279,7 @@ class OWAConnectionPlugin(object):
         # regexp to find each response body
         a = re.compile(r'<a:response>(.+?)</a:response>')
         # regeexp to find the "href", "fromemail" and "subject" contents
-        b = re.compile(r'<a:href>(?P<href>.+?)</a:href>.*?<d:fromemail>(?P<fromemail>.+?)</d:fromemail>.*?<d:subject>(?P<subject>.*?)</d:subject>')
+        b = re.compile(r'<a:href>(?P<href>.+?)</a:href>.*?<d:fromemail>(?P<fromemail>.+?)</d:fromemail>.*?(<d:subject>(?P<subject>.*?)</d:subject>|<d:subject/>)')
 
         raw_list =  a.findall(xml)
 
