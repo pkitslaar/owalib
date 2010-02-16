@@ -237,7 +237,8 @@ class OWAConnectionPlugin(object):
         m = a.search(text)
 
         if not m:
-            self.log.error("Could not find <BASE href=\"..\"> tag. Exiting!")
+            print text
+            #self.log.error("Could not find <BASE href=\"..\"> tag. Exiting!")
             sys.exit(1)
         
         return m.group(1)
