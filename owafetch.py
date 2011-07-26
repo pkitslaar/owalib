@@ -42,34 +42,42 @@ import sys
 import logging
 import owalib
 import smtplib
+import subprocess
 
 def sendMail(_fromAddress, _message, _prop_dict):
     """
-    Sends an email using SMTP.
+    Sends an email.
     """
-    # Get server and port info
-    server = _prop_dict.get('MailServer','localhost')
-    port = eval(_prop_dict.get('MailServerPort', '25'))
-    s = smtplib.SMTP(server, port)
-
-    # should we use TTLS
-    if _prop_dict.get('MailServerUseTTLS', 'false').lower() == 'true':
-        s.starttls()
-    
-    # check if we need to login
-    user = _prop_dict.get('MailServerUser', None)
-    password = _prop_dict.get('MailServerPassword', None)
-    if user and password:
-        s.login(user, password)
-
     # get the destination address
     dstAddress = _prop_dict['DestinationAddress'] 
-    
-    # send the mail
-    s.sendmail(_fromAddress, dstAddress, _message)
+    procmail = _prop_dict.get('ProcMail', 'false').lower() == 'true'
 
-    # close the session
-    s.quit()
+    if (procmail):
+        # send via procmail like utility (DestinationAddress contains path to utility)
+        pmp = subprocess.Popen(dstAddress, stdin=subprocess.PIPE)
+        pmp.communicate(_message)
+    else:
+        # send via SMTP
+        # Get server and port info
+        server = _prop_dict.get('MailServer','localhost')
+        port = eval(_prop_dict.get('MailServerPort', '25'))
+        s = smtplib.SMTP(server, port)
+
+        # should we use TTLS
+        if _prop_dict.get('MailServerUseTTLS', 'false').lower() == 'true':
+            s.starttls()
+
+        # check if we need to login
+        user = _prop_dict.get('MailServerUser', None)
+        password = _prop_dict.get('MailServerPassword', None)
+        if user and password:
+            s.login(user, password)
+
+        # send the mail
+        s.sendmail(_fromAddress, dstAddress, _message)
+
+        # close the session
+        s.quit()
 
 # List of required properties 
 PROPERTIES = [
@@ -90,7 +98,7 @@ PROPERTIES = [
     ('ForceFrom', 'UNSUPPORTED'),
     ('ForceFromAddr', 'UNSUPPORTED'),
     ('MboxFile', 'UNSUPPORTED'),
-    ('ProcMail', 'UNSUPPORTED'),
+    ('ProcMail', 'OPTIONAL'),
     ('MailServer', 'OPTIONAL'),
     ('MailServerPort', 'OPTIONAL'),
     ('MailServerUseTTLS', 'OPTIONAL'),
@@ -236,16 +244,16 @@ if __name__ == "__main__":
     # Use Form Based Authentication (FBA)
     password = prop_dict['Password'] 
     exchangepath = prop_dict['ExchangePath'] 
-    fbapath = prop_dict.get('FBAPath', '/exchweb/bin/auth/owaauth.dll')
+    fbapath = prop_dict.get('FBApath', '/exchweb/bin/auth/owaauth.dll')
     owa.doFBA( fullUserName, password, exchangepath, fbapath)
 
     # get the users root path on the server
     rootpath = owa.getRootPath(prop_dict["ExchangePath"])
-    log.info('Found user root path: %s' % rootpath)
+    log.debug('Found user root path: %s' % rootpath)
 
     # get the users inbox path
     inboxPath = owa.getInboxPath(rootpath)
-    log.info('Found inbox path: %s' % inboxPath)
+    log.debug('Found inbox path: %s' % inboxPath)
 
 
     # see which messages to list (default only unread)
