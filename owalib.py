@@ -217,16 +217,13 @@ class OWAConnectionPlugin(object):
         resp = self.do_request('GET', "/" + _pRootPath + "/")
         status = resp.status
         if status == 401:
-            #self.log.error("Authentication failed. Exiting!")
-            sys.exit(1)
+            raise ValueError("Authentication failed. Exiting!")
         elif status == 404:
-            #self.log.error("Exchange user path doesn't exist. Exiting!")
-            sys.exit(1)
+            raise ValueError("Exchange user path doesn't exist. Exiting!")
         elif status == 200:
             pass
         else:
-            #self.log.error("Status = %s. Exiting!" % status)
-            sys.exit(1)
+            raise ValueError("Status = %s. Exiting!" % status)
 
         # get the respons text
         text = resp.read()
@@ -237,9 +234,7 @@ class OWAConnectionPlugin(object):
         m = a.search(text)
 
         if not m:
-            print text
-            #self.log.error("Could not find <BASE href=\"..\"> tag. Exiting!")
-            sys.exit(1)
+            raise ValueError("Could not find <BASE href=\"..\"> tag. Exiting!")
         
         return m.group(1)
 
@@ -263,8 +258,7 @@ class OWAConnectionPlugin(object):
         m = a.search(xml)
 
         if not m:
-            #self.log.error("Could not find inbox path. Exiting!")
-            sys.exit(1)
+            raise ValueError("Could not find inbox path. Exiting!")
         
         return m.groups()[0]
 

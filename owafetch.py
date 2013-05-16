@@ -129,7 +129,7 @@ def ParseProperties(_file):
             continue
 
         # split at the '=' character
-        key_value = line.split('=')
+        key_value = line.split('=',1)
 
         # skip if line is not well defined
         if len(key_value) < 2:
