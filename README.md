@@ -5,7 +5,7 @@ The owalib project files also contain the owafetch utility which is intended to 
 for the Java based fetchExc program. This utility allows to fetch e-mail from a MS Exchange Server 
 (through Outlook Web Access) and forward it to another address. 
 
-See the OwaFetchQuickStart documentation to quickly setup fetching and forwarding of your 
+See the [QuickStart](QuickStart.md) documentation to quickly setup fetching and forwarding of your 
 Outlook Web Access mail to another mail address.
 
 Features
