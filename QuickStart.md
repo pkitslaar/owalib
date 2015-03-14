@@ -8,7 +8,7 @@ The syntax and variables in this properties file are identical to the
 [fetchExc](http://www.saunalahti.fi/juhrauti/index.html) properties file 
 (for easy migration from fetchExc to owafetch). 
 
-See comments in the [example.properties](https://github.com/pkitslaar/owalib/example.propeties) file 
+See comments in the [example.properties](example.properties) file 
 for more information about the available properties.
 
 Below is an example of a properties file.
